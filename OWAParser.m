@@ -26,8 +26,46 @@
 	return self;
 }
 
++(NSString *) urlencode: (NSString *) url
+{
+    NSArray *escapeChars = [NSArray arrayWithObjects:@";" , @"/" , @"?" , @":" ,
+							@"@" , @"&" , @"=" , @"+" ,
+							@"$" , @"," , @"[" , @"]",
+							@"#", @"!", @"'", @"(", 
+							@")", @"*", nil];
+	
+    NSArray *replaceChars = [NSArray arrayWithObjects:@"%3B" , @"%2F" , @"%3F" ,
+							 @"%3A" , @"%40" , @"%26" ,
+							 @"%3D" , @"%2B" , @"%24" ,
+							 @"%2C" , @"%5B" , @"%5D", 
+							 @"%23", @"%21", @"%27",
+							 @"%28", @"%29", @"%2A", nil];
+	
+    int len = [escapeChars count];
+	
+    NSMutableString *temp = [url mutableCopy];
+	
+    int i;
+    for(i = 0; i < len; i++)
+    {
+		
+        [temp replaceOccurrencesOfString: [escapeChars objectAtIndex:i]
+							  withString:[replaceChars objectAtIndex:i]
+								 options:NSLiteralSearch
+								   range:NSMakeRange(0, [temp length])];
+    }
+	
+    NSString *out = [NSString stringWithString: temp];
+	
+    return out;
+}
+
+-(NSString*)getBaseUrl {
+	return [NSString stringWithFormat:@"https://%@:%@@%@/", login, password, baseUrl];
+}
+
 -(NSData*)getContentFromUrl:(NSString*)aUrl {
-	NSString *builtUrl = [NSString stringWithFormat:@"https://%@:%@@%@/%@", login, password, baseUrl, aUrl];
+	NSString *builtUrl = [NSString stringWithFormat:@"%@%@", [self getBaseUrl], aUrl];
 	
 	NSMutableURLRequest * theRequest=(NSMutableURLRequest*)[NSMutableURLRequest requestWithURL:[NSURL URLWithString:builtUrl] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:60.0];
 	
@@ -170,6 +208,12 @@
 		[messages addObject:[self parseMessageNode:[nodes objectAtIndex:i]]];
 	}
 	return messages;
+}
+
+
+
+-(NSString*)getFullMessageUrlFromId:(NSString*)messageId {
+	return [NSString stringWithFormat:@"%@?ae=Item&t=IPM.Note&id=%@", [self getBaseUrl], [[self class] urlencode:messageId]];
 }
 
 
