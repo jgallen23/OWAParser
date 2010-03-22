@@ -16,8 +16,11 @@
 }
 
 -(id)initWithURL:(NSString *)aUrl login:(NSString *)aLogin password:(NSString *)aPassword;
--(BOOL)isAuthenticated;
+-(BOOL)login;
 -(NSArray*)getFolders;
 -(int)getInboxUnreadCount;
 -(NSArray*)getMessagesFrom:(NSString *)folderId;
+-(NSString*)getMessageUrlFromId:(NSString *)messageId;
+-(NSString*)getFullMessageUrlFromId:(NSString *)messageId;
+-(NSDictionary*)getMessageFromId:(NSString *)messageId;
 @end
