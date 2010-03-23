@@ -80,6 +80,7 @@
   #define NSXMLAttributeDeclarationKind  GDataXMLAttributeDeclarationKind
   #define NSXMLElementDeclarationKind    GDataXMLElementDeclarationKind
   #define NSXMLNotationDeclarationKind   GDataXMLNotationDeclarationKind
+  #define NSXMLDocumentTidyHTML          0
 
   // properties used for retaining the XML tree in the classes that use them
   #define kGDataXMLDocumentPropertyKey @"_XMLDocument"
