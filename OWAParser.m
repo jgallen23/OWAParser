@@ -7,6 +7,7 @@
 //
 
 #import "OWAParser.h"
+#import "GDataDefines.h"
 
 @implementation OWAParser
 
@@ -121,8 +122,7 @@
 	
 	NSHTTPURLResponse *response = nil;
 	
-	NSData *data = [NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:nil];
-	//return data;
+	[NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:nil];
 	
 	/* Get an array with all the cookies */
 	NSArray* allCookies = [NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
