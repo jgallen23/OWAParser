@@ -23,4 +23,5 @@
 -(NSString*)getMessageUrlFromId:(NSString *)messageId;
 -(NSString*)getFullMessageUrlFromId:(NSString *)messageId;
 -(NSDictionary*)getMessageFromId:(NSString *)messageId;
++(NSString*)formattedDateRelativeToNow:(NSDate *)date;
 @end
