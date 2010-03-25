@@ -7,7 +7,7 @@
 //
 
 #import "OWAParser.h"
-#import "GDataDefines.h"
+#import "XPathQuery.h"
 
 @implementation OWAParser
 
@@ -95,21 +95,7 @@
 	NSData *responseData = [self getContentFromUrl:aUrl];
 	//NSLog(@"%@", aUrl);
 	//NSLog(@"%@", [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding]);
-	NSError *error;
-    NSXMLDocument *document =
-	[[NSXMLDocument alloc] initWithData:responseData options:NSXMLDocumentTidyHTML error:&error];
-    
-    // Deliberately ignore the error: with most HTML it will be filled with
-    // numerous "tidy" warnings.
-    
-    NSXMLElement *rootNode = [document rootElement];
-    
-    
-    NSArray *newItemsNodes = [rootNode nodesForXPath:query error:&error];
-    if (error)
-    {
-		NSLog(@"%@", error);
-    }	
+	NSArray *newItemsNodes = PerformHTMLXPathQuery(responseData, query);
 	
 	return newItemsNodes;
 }
@@ -151,13 +137,20 @@
 	}
 }
 
--(NSDictionary*)parseFolderNode:(NSXMLElement*)node {
-	NSXMLElement *hrefNode = (NSXMLElement*)[[node childAtIndex:0] childAtIndex:0];
-	
+-(NSDictionary*)parseFolderNode:(NSDictionary*)node {
+	NSArray *itemNode = [[[node objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeChildArray"];
+	NSString* name = [[itemNode objectAtIndex:0] objectForKey:@"nodeContent"];
+	NSString* href = [[[[itemNode objectAtIndex:0] objectForKey:@"nodeAttributeArray"] objectAtIndex:1] objectForKey:@"nodeContent"];
+	NSString* unreadCount = @"0";
+	if ([itemNode count] == 2) {
+		unreadCount = [[itemNode objectAtIndex:1] objectForKey:@"nodeContent"];
+		unreadCount = [unreadCount substringWithRange:NSMakeRange(1, [unreadCount length]-2)];
+	}
 	NSDictionary *folder = [[NSDictionary alloc] initWithObjectsAndKeys:
-							[[node stringValue] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]], @"name",
-							[hrefNode stringValue], @"id",
-							[[hrefNode attributeForName:@"href"] stringValue], @"url",
+							name, @"name",
+							name, @"id",
+							href, @"url",
+							unreadCount, @"unreadCount",
 							nil
 							];
 	
@@ -192,8 +185,8 @@
 	NSString *xpathQueryString = @"//table[@class='snt'][1]/tr[3]/td/span";
 	NSArray *nodes = [self performXPathQuery:xpathQueryString onUrl:@""];
 	if ([nodes count] != 0) {
-		NSXMLElement *elem = [nodes objectAtIndex:0];
-		NSString *spanTag = [elem stringValue];
+		NSDictionary *elem = [nodes objectAtIndex:0];
+		NSString *spanTag = [elem objectForKey:@"nodeContent"];
 		NSString *count = [spanTag substringWithRange:NSMakeRange(1, [spanTag length]-2)];
 		return [count intValue];
 
@@ -212,16 +205,25 @@
 	return [formatter dateFromString:dateString];
 }
 
--(NSDictionary*)parseMessageNode:(NSXMLElement*)node {
-	NSNumber *unread = [NSNumber numberWithBool:([node attributes])?YES:NO];
-	NSString *msgId = [[(NSXMLElement*)[[node childAtIndex:3] childAtIndex:0] attributeForName:@"value"] stringValue];
-	NSXMLNode *subjectNode = [[[node childAtIndex:5] childAtIndex:0] childAtIndex:0];
-	NSString *subject = [subjectNode stringValue];
-	NSString *dateString = [[node childAtIndex:6] stringValue];
+
+-(NSDictionary*)parseMessageNode:(NSDictionary*)node {
+
+	NSNumber *unread = [NSNumber numberWithBool:([node objectForKey:@"nodeAttributeArray"] != nil)?YES:NO];
+	
+
+	NSString *msgId = [[[[[[[node objectForKey:@"nodeChildArray"] objectAtIndex:3] objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeAttributeArray"] objectAtIndex:2] objectForKey:@"nodeContent"];
+	NSString *subject = [[[[[[[node objectForKey:@"nodeChildArray"] objectAtIndex:5] objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeContent"];
+	
+	NSString *dateString = [[[node objectForKey:@"nodeChildArray"] objectAtIndex:6] objectForKey:@"nodeContent"];
 	NSDate *date = [self parseDateWithString:dateString];
+	
+	NSString *from = [[[node objectForKey:@"nodeChildArray"] objectAtIndex:4] objectForKey:@"nodeContent"];
+	
+	
+
 	NSDictionary *msg = [[NSDictionary alloc] initWithObjectsAndKeys:
-						  unread, @"unread",
-						 [[node childAtIndex:4] stringValue], @"from",
+						 unread, @"unread",
+						 from, @"from",
 						 msgId, @"id",
 						 subject, @"subject",
 						 date, @"date",
@@ -229,6 +231,7 @@
 						];
 	
 	return msg;
+
 }
 
 -(NSArray*)getMessagesFrom:(NSString*)folderId {
@@ -255,28 +258,30 @@
 }
 
 -(NSDictionary*)getMessageFromId:(NSString*)messageId {
-	NSString *xpathQueryString = @"//table[@class='w100']/tr[2]/td/table[@class='w100']";
 	NSString *messageUrl = [self getMessageUrlFromId:messageId];
-	NSArray *nodes = [self performXPathQuery:xpathQueryString onUrl:messageUrl];
-	NSMutableDictionary *msg = [[NSMutableDictionary alloc] init];
+	NSData *responseData = [self getContentFromUrl:messageUrl];
 	
-	if ([nodes count] != 0) {
-		NSXMLElement *msgElement = [nodes objectAtIndex:0];
-		NSLog(@"%@", msgElement);
-		NSError *error;
-		NSString *subject = [[[msgElement nodesForXPath:@"//tr[1]/td/table[@class='msgHd']/tr[1]/td[@class='sub']" error:&error] objectAtIndex:0] stringValue];
-		[msg setObject:subject forKey:@"subject"];
-		NSString *from = [[[msgElement nodesForXPath:@"//tr[1]/td/table[@class='msgHd']/tr[2]/td[@class='frm']/span[@class='rwRRO']/a" error:&error] objectAtIndex:0] stringValue];
-		[msg setObject:from forKey:@"from"];
-		NSString *sent = [[[msgElement nodesForXPath:@"//tr[1]/td/table[@class='msgHd']/tr[4]/td[@class='hdtxnr' and position()=2]" error:&error] objectAtIndex:0] stringValue];
-		[msg setObject:sent forKey:@"sent"];
-		NSXMLElement *bodyElement = [[msgElement nodesForXPath:@"//tr[2]/td/table[@class='w100']/tr[3]/td[@class='bdy']/div[@class='bdy']/div" error:&error] objectAtIndex:0];
-		NSString *body = [bodyElement stringValue];
-		[msg setObject:body forKey:@"body"];
-		NSString *bodyHtml = [bodyElement XMLString];
-		[msg setObject:bodyHtml forKey:@"bodyHtml"];
+	NSString* subject = [[PerformHTMLXPathQuery(responseData, @"//tr[1]/td/table[@class='msgHd']/tr[1]/td[@class='sub']") objectAtIndex:0] objectForKey:@"nodeContent"];
+	NSDictionary* fromNode = [PerformHTMLXPathQuery(responseData, @"//tr[1]/td/table[@class='msgHd']/tr[2]/td[@class='frm']/span") objectAtIndex:0];
+	NSString* from=nil;
+	if ([fromNode objectForKey:@"nodeChildArray"] != nil) {
+		from = [[[fromNode objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeContent"];
+	} else {
+		from = [fromNode objectForKey:@"nodeContent"];
 	}
+
+	NSString *sent = [[PerformHTMLXPathQuery(responseData, @"//tr[1]/td/table[@class='msgHd']/tr[4]/td[@class='hdtxnr' and position()=2]") objectAtIndex:0] objectForKey:@"nodeContent"];
 	
+	NSString *body = PerformHTMLXPathQueryAndReturnText(responseData, @"//tr[2]/td/table[@class='w100']/tr[3]/td[@class='bdy']/div[@class='bdy']/div");
+	
+	NSDictionary* msg = [[NSDictionary alloc] initWithObjectsAndKeys:
+						 subject, @"subject",
+						 from, @"from",
+						 sent, @"sent",
+						 body, @"body",
+						 nil];
+
+
 	return msg;
 }
 
