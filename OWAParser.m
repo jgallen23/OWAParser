@@ -9,29 +9,7 @@
 #import "OWAParser.h"
 #import "XPathQuery.h"
 
-@implementation OWAParser
-
--(id)init {
-	if (self=[super init]) {
-	}
-	
-	return self;
-}
-
--(id)initWithURL:(NSString*)aUrl login:(NSString*)aLogin password:(NSString*)aPassword {
-	if (self=[super init]) {
-		if (![aUrl hasPrefix:@"http"])
-			baseUrl = [NSString stringWithFormat:@"http://%@", aUrl];
-		else
-			baseUrl = aUrl;
-		login = aLogin;
-		password = aPassword;
-	}
-	return self;
-}
-
-+(NSString *) urlencode: (NSString *) url
-{
+static NSString* urlencode(NSString *url) {
     NSArray *escapeChars = [NSArray arrayWithObjects:@";" , @"/" , @"?" , @":" ,
 							@"@" , @"&" , @"=" , @"+" ,
 							@"$" , @"," , @"[" , @"]",
@@ -64,6 +42,29 @@
     return out;
 }
 
+@implementation OWAParser
+
+-(id)init {
+	if (self=[super init]) {
+	}
+	
+	return self;
+}
+
+-(id)initWithURL:(NSString*)aUrl login:(NSString*)aLogin password:(NSString*)aPassword {
+	if (self=[super init]) {
+		if (![aUrl hasPrefix:@"http"])
+			baseUrl = [NSString stringWithFormat:@"http://%@", aUrl];
+		else
+			baseUrl = aUrl;
+		login = aLogin;
+		password = aPassword;
+	}
+	return self;
+}
+
+
+
 -(NSString*)getBaseUrl {
 	NSArray *urlComp = [baseUrl componentsSeparatedByString:@"://"];
 	return [NSString stringWithFormat:@"%@://%@:%@@%@", [urlComp objectAtIndex:0], login, password, [urlComp objectAtIndex:1]];
@@ -73,22 +74,43 @@
 	return baseUrl;
 }
 
--(NSData*)getContentFromUrl:(NSString*)aUrl {
+-(NSData*)getContentFromUrl:(NSString*)aUrl PostData:(NSDictionary*)postData {
 	NSString *builtUrl = [NSString stringWithFormat:@"%@%@", [self getBaseUrlWithoutAuth], aUrl];
 	
 	/* getting the stored cookies */
 	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
 						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
 	/* Make a new header from the cookies */
-	NSDictionary* headers = [NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
+	NSMutableDictionary* headers = [NSMutableDictionary dictionaryWithDictionary:[NSHTTPCookie requestHeaderFieldsWithCookies:cookies]];
 	
 	NSMutableURLRequest * theRequest=(NSMutableURLRequest*)[NSMutableURLRequest requestWithURL:[NSURL URLWithString:builtUrl] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:60.0];
+	
+	if (postData != nil) {
+		[theRequest setHTTPMethod:@"POST"];
+		NSString* myRequestString = [postData urlEncodedString];
+		//myRequestString = urlencode(myRequestString);
+		NSLog(@"%@", myRequestString);
+		
+		[headers setObject:@"application/x-www-form-urlencoded" forKey:@"Content-Type"];
+		[headers setObject:[NSString stringWithFormat:@"%d",[myRequestString length]] forKey:@"Content-Length"];
+		
+		NSData *myRequestData = [ NSData dataWithBytes: [ myRequestString UTF8String ] length: [ myRequestString length ] ];
+		[theRequest setHTTPBody:myRequestData];
+	}
 	[theRequest setAllHTTPHeaderFields:headers];
 	
-	NSHTTPURLResponse *response = nil;
+	NSLog(@"%@", [theRequest allHTTPHeaderFields]);
 	
-	NSData *data = [NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:nil];
+	NSHTTPURLResponse *response = nil;
+	NSError* error = nil;
+	NSData *data = [NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:&error];
+	NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
+	NSLog(@"%@", error);
 	return data;
+}
+
+-(NSData*)getContentFromUrl:(NSString*)aUrl {
+	return [self getContentFromUrl:aUrl PostData:nil];
 }
 
 -(NSArray*)performXPathQuery:(NSString*)query onUrl:(NSString*)aUrl {
@@ -254,7 +276,7 @@
 }
 
 -(NSString*)getMessageUrlFromId:(NSString*)messageId {
-	return [NSString stringWithFormat:@"?ae=Item&t=IPM.Note&id=%@", [[self class] urlencode:messageId]];
+	return [NSString stringWithFormat:@"?ae=Item&t=IPM.Note&id=%@", urlencode(messageId)];
 }
 
 -(NSDictionary*)getMessageFromId:(NSString*)messageId {
@@ -284,6 +306,76 @@
 
 
 	return msg;
+}
+
+-(void)markMessageUnread:(NSString*)messageId {
+	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
+						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
+	NSString* canary = @"";
+	for (NSHTTPCookie* cookie in cookies) {
+		if ([cookie.name isEqualToString:@"UserContext"]) {
+			canary = cookie.value;
+			break;
+		}
+	}
+	NSDictionary *data = [[NSDictionary alloc] initWithObjectsAndKeys:
+						  //[[self class] urlencode:messageId], @"chkmsg",
+						  messageId, @"chkmsg",
+						  @"", @"hidactbrfld",
+						  @"", @"hidcid",
+						  canary, @"hidcanary",
+						  @"markunread", @"hidcmdpst",
+						  @"MessageView", @"hidpid",
+						  @"", @"hidpnst",
+						  @"", @"hidso",
+						  nil];
+	[self getContentFromUrl:[[self getFolderById:@"Inbox"] objectForKey:@"url"] PostData:data];
+}
+
+-(void)markMessageRead:(NSString*)messageId {
+	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
+						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
+	NSString* canary = @"";
+	for (NSHTTPCookie* cookie in cookies) {
+		if ([cookie.name isEqualToString:@"UserContext"]) {
+			canary = cookie.value;
+			break;
+		}
+	}
+	NSDictionary *data = [[NSDictionary alloc] initWithObjectsAndKeys:
+						  messageId, @"chkmsg",
+						  @"", @"hidactbrfld",
+						  @"", @"hidcid",
+						  canary, @"hidcanary",
+						  @"markread", @"hidcmdpst",
+						  @"MessageView", @"hidpid",
+						  @"", @"hidpnst",
+						  @"", @"hidso",
+						  nil];
+	[self getContentFromUrl:[[self getFolderById:@"Inbox"] objectForKey:@"url"] PostData:data];
+}
+
+-(void)deleteMessage:(NSString*)messageId {
+	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
+						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
+	NSString* canary = @"";
+	for (NSHTTPCookie* cookie in cookies) {
+		if ([cookie.name isEqualToString:@"UserContext"]) {
+			canary = cookie.value;
+			break;
+		}
+	}
+	NSDictionary *data = [[NSDictionary alloc] initWithObjectsAndKeys:
+						  messageId, @"chkmsg",
+						  @"", @"hidactbrfld",
+						  @"", @"hidcid",
+						  canary, @"hidcanary",
+						  @"delete", @"hidcmdpst",
+						  @"MessageView", @"hidpid",
+						  @"", @"hidpnst",
+						  @"", @"hidso",
+						  nil];
+	[self getContentFromUrl:[[self getFolderById:@"Inbox"] objectForKey:@"url"] PostData:data];
 }
 
 +(NSString *) formattedDateRelativeToNow:(NSDate *)date

@@ -23,5 +23,8 @@
 -(NSString*)getMessageUrlFromId:(NSString *)messageId;
 -(NSString*)getFullMessageUrlFromId:(NSString *)messageId;
 -(NSDictionary*)getMessageFromId:(NSString *)messageId;
+-(void)markMessageUnread:(NSString *)messageId;
+-(void)markMessageRead:(NSString *)messageId;
+-(void)deleteMessage:(NSString *)messageId;
 +(NSString*)formattedDateRelativeToNow:(NSDate *)date;
 @end
