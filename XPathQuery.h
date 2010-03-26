@@ -14,4 +14,4 @@
 
 NSArray *PerformHTMLXPathQuery(NSData *document, NSString *query);
 NSArray *PerformXMLXPathQuery(NSData *document, NSString *query);
-NSString *PerformHTMLXPathQueryAndReturnText(NSData *document, NSString *query);
+NSString *PerformHTMLXPathQueryAndReturnXml(NSData *document, NSString *query);

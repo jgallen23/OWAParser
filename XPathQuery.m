@@ -199,7 +199,7 @@ NSArray *PerformXMLXPathQuery(NSData *document, NSString *query)
 	return result;
 }
 
-NSString* PerformHTMLXPathQueryAndReturnText(NSData *document, NSString *query)
+NSString* PerformHTMLXPathQueryAndReturnXml(NSData *document, NSString *query)
 {
 	xmlDocPtr doc;
 	
@@ -237,11 +237,29 @@ NSString* PerformHTMLXPathQueryAndReturnText(NSData *document, NSString *query)
 		return nil;
 	}
 	
-	NSMutableString* text = [[NSMutableString alloc] initWithString:@""];
-	for (NSInteger i = 0; i < nodes->nodeNr; i++)
-	{
-		[text appendString:[[NSString alloc] initWithCString:(char *)xmlNodeGetContent(nodes->nodeTab[i])]];
+	NSString *str = nil;
+	
+	xmlBufferPtr buff = xmlBufferCreate();
+	if (buff) {
+		
+		xmlDocPtr doc = NULL;
+		int level = 0;
+		int format = 0;
+		
+		int result = xmlNodeDump(buff, doc, nodes->nodeTab[0], level, format);
+		
+		if (result > -1) {
+			str = [[[NSString alloc] initWithBytes:(xmlBufferContent(buff))
+											length:(xmlBufferLength(buff))
+										  encoding:NSUTF8StringEncoding] autorelease];
+		}
+		xmlBufferFree(buff);
 	}
+	
+	
+	// remove leading and trailing whitespace
+	NSCharacterSet *ws = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+	NSString *trimmed = [str stringByTrimmingCharactersInSet:ws];
 	
     /* Cleanup */
     xmlXPathFreeObject(xpathObj);
@@ -249,5 +267,5 @@ NSString* PerformHTMLXPathQueryAndReturnText(NSData *document, NSString *query)
 	
 	xmlFreeDoc(doc); 
     
-    return text;
+    return trimmed;
 }
