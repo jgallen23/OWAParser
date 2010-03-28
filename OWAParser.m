@@ -294,14 +294,30 @@ static NSString* urlencode(NSString *url) {
 
 	NSString *sent = [[PerformHTMLXPathQuery(responseData, @"//tr[1]/td/table[@class='msgHd']/tr[4]/td[@class='hdtxnr' and position()=2]") objectAtIndex:0] objectForKey:@"nodeContent"];
 	
+	NSArray *toNodes = PerformHTMLXPathQuery(responseData, @"//*[@id='divTo']/span");
+	
+	NSMutableArray *to = [[NSMutableArray alloc] initWithCapacity:[toNodes count]];
+	
+	for (NSDictionary *toDict in toNodes) {
+		NSString* toName = nil;
+		if ([toDict objectForKey:@"nodeChildArray"]) {
+			toName = [[[toDict objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeContent"];
+		} else {
+			toName = [toDict objectForKey:@"nodeContent"];
+		}
+
+		[to addObject:toName];
+	}
+	
 	NSString *body = PerformHTMLXPathQueryAndReturnXml(responseData, @"//tr[2]/td/table[@class='w100']/tr[3]/td[@class='bdy']/div[@class='bdy']/div");
 	
 	NSDictionary* msg = [[NSDictionary alloc] initWithObjectsAndKeys:
 						 messageId, @"id",
 						 subject, @"subject",
 						 from, @"from",
-						 sent, @"sent",
+						 sent, @"sentOn",
 						 body, @"bodyXml",
+						 to, @"sentTo",
 						 nil];
 
 
