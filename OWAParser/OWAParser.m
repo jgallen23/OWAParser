@@ -8,8 +8,6 @@
 
 #import "OWAParser.h"
 #import "XPathQuery.h"
-#import "Folder.h"
-#import "MessageLite.h"
 
 static NSString* urlencode(NSString *url) {
     NSArray *escapeChars = [NSArray arrayWithObjects:@";" , @"/" , @"?" , @":" ,
@@ -264,7 +262,7 @@ static NSString* urlencode(NSString *url) {
 	return [NSString stringWithFormat:@"?ae=Item&t=IPM.Note&id=%@", urlencode(messageId)];
 }
 
--(NSDictionary*)getMessageFromId:(NSString*)messageId {
+-(Message*)getMessageFromId:(NSString*)messageId {
 	NSString *messageUrl = [self getMessageUrlFromId:messageId];
 	NSData *responseData = [self getContentFromUrl:messageUrl];
 	
@@ -296,15 +294,12 @@ static NSString* urlencode(NSString *url) {
 	
 	NSString *body = PerformHTMLXPathQueryAndReturnXml(responseData, @"//tr[2]/td/table[@class='w100']/tr[3]/td[@class='bdy']/div[@class='bdy']/div");
 	
-	NSDictionary* msg = [[NSDictionary alloc] initWithObjectsAndKeys:
-						 messageId, @"id",
-						 subject, @"subject",
-						 from, @"from",
-						 sent, @"sentOn",
-						 body, @"bodyXml",
-						 to, @"sentTo",
-						 nil];
-
+	Message* msg = [[Message alloc] initWithSubject:subject
+											   From:from
+											 SentOn:sent
+											   Body:body
+											 SentTo:to
+										  MessageId:messageId];
 
 	return msg;
 }
