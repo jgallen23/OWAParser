@@ -89,7 +89,6 @@ static NSString* urlencode(NSString *url) {
 		[theRequest setHTTPMethod:@"POST"];
 		NSString* myRequestString = [postData urlEncodedString];
 		//myRequestString = urlencode(myRequestString);
-		NSLog(@"%@", myRequestString);
 		
 		[headers setObject:@"application/x-www-form-urlencoded" forKey:@"Content-Type"];
 		[headers setObject:[NSString stringWithFormat:@"%d",[myRequestString length]] forKey:@"Content-Length"];
@@ -99,13 +98,9 @@ static NSString* urlencode(NSString *url) {
 	}
 	[theRequest setAllHTTPHeaderFields:headers];
 	
-	NSLog(@"%@", [theRequest allHTTPHeaderFields]);
-	
 	NSHTTPURLResponse *response = nil;
 	NSError* error = nil;
 	NSData *data = [NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:&error];
-	NSLog(@"%@", [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
-	NSLog(@"%@", error);
 	return data;
 }
 
@@ -139,10 +134,7 @@ static NSString* urlencode(NSString *url) {
 	 setCookies:allCookies
 	 forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]
 	 mainDocumentURL:nil];
-	 
-	 for (NSHTTPCookie* cookie in allCookies) {
-		 NSLog(@"\nName: %@\nValue: %@\nExpires: %@", [cookie name], [cookie value], [cookie expiresDate]);
-	 }
+
 	
 	@try {
 		NSData *data = [self getContentFromUrl:@""];
@@ -175,7 +167,6 @@ static NSString* urlencode(NSString *url) {
 							unreadCount, @"unreadCount",
 							nil
 							];
-	NSLog(@"%@", folder);
 	return folder;
 }
 
