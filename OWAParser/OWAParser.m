@@ -9,6 +9,7 @@
 #import "OWAParser.h"
 #import "XPathQuery.h"
 #import "Folder.h"
+#import "MessageLite.h"
 
 static NSString* urlencode(NSString *url) {
     NSArray *escapeChars = [NSArray arrayWithObjects:@";" , @"/" , @"?" , @":" ,
@@ -181,12 +182,12 @@ static NSString* urlencode(NSString *url) {
 	return folders;
 }
 
--(NSDictionary*)getFolderById:(NSString*)folderId {
+-(Folder*)getFolderById:(NSString*)folderId {
 	if (!folders) {
 		[self getFolders];
 	}
-	for (NSDictionary *folder in folders) {
-		if ([[folder objectForKey:@"id"] isEqualToString:folderId])
+	for (Folder *folder in folders) {
+		if ([folder.name isEqualToString:folderId])
 			return folder;
 	}
 	return nil;
@@ -217,9 +218,9 @@ static NSString* urlencode(NSString *url) {
 }
 
 
--(NSDictionary*)parseMessageNode:(NSDictionary*)node {
+-(MessageLite*)parseMessageNode:(NSDictionary*)node {
 
-	NSNumber *unread = [NSNumber numberWithBool:([node objectForKey:@"nodeAttributeArray"] != nil)?YES:NO];
+	BOOL unread = ([node objectForKey:@"nodeAttributeArray"] != nil)?YES:NO;
 	
 
 	NSString *msgId = [[[[[[[node objectForKey:@"nodeChildArray"] objectAtIndex:3] objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeAttributeArray"] objectAtIndex:2] objectForKey:@"nodeContent"];
@@ -230,26 +231,21 @@ static NSString* urlencode(NSString *url) {
 	
 	NSString *from = [[[node objectForKey:@"nodeChildArray"] objectAtIndex:4] objectForKey:@"nodeContent"];
 	
-	
-
-	NSDictionary *msg = [[NSDictionary alloc] initWithObjectsAndKeys:
-						 unread, @"unread",
-						 from, @"from",
-						 msgId, @"id",
-						 subject, @"subject",
-						 date, @"date",
-						  nil
-						];
+	MessageLite *msg = [[MessageLite alloc] initWithSubject:subject
+													   From:from
+													   Date:date
+												  MessageId:msgId
+												   IsUnread:unread];
 	
 	return msg;
 
 }
 
 -(NSArray*)getMessagesFrom:(NSString*)folderId {
-	NSDictionary *folder = [self getFolderById:folderId];
+	Folder *folder = [self getFolderById:folderId];
 	
 	NSString *xpathQueryString = @"//div[@class='cntnt']/table[@class='lvw']/tr";
-	NSArray *nodes = [self performXPathQuery:xpathQueryString onUrl:[folder objectForKey:@"url"]];
+	NSArray *nodes = [self performXPathQuery:xpathQueryString onUrl:folder.url];
 
 	NSMutableArray *messages = [[NSMutableArray alloc] initWithCapacity:[nodes count] -2];
 	for (int i = 2; i < [nodes count]; i++) {
@@ -334,7 +330,7 @@ static NSString* urlencode(NSString *url) {
 						  @"", @"hidpnst",
 						  @"", @"hidso",
 						  nil];
-	[self getContentFromUrl:[[self getFolderById:@"Inbox"] objectForKey:@"url"] PostData:data];
+	[self getContentFromUrl:[[self getFolderById:@"Inbox"] url] PostData:data];
 }
 
 -(void)markMessageRead:(NSString*)messageId {
@@ -357,7 +353,7 @@ static NSString* urlencode(NSString *url) {
 						  @"", @"hidpnst",
 						  @"", @"hidso",
 						  nil];
-	[self getContentFromUrl:[[self getFolderById:@"Inbox"] objectForKey:@"url"] PostData:data];
+	[self getContentFromUrl:[[self getFolderById:@"Inbox"] url] PostData:data];
 }
 
 -(void)deleteMessage:(NSString*)messageId {
@@ -380,7 +376,7 @@ static NSString* urlencode(NSString *url) {
 						  @"", @"hidpnst",
 						  @"", @"hidso",
 						  nil];
-	[self getContentFromUrl:[[self getFolderById:@"Inbox"] objectForKey:@"url"] PostData:data];
+	[self getContentFromUrl:[[self getFolderById:@"Inbox"] url] PostData:data];
 }
 
 +(NSString *) formattedDateRelativeToNow:(NSDate *)date
