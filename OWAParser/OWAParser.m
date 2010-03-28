@@ -8,6 +8,7 @@
 
 #import "OWAParser.h"
 #import "XPathQuery.h"
+#import "Folder.h"
 
 static NSString* urlencode(NSString *url) {
     NSArray *escapeChars = [NSArray arrayWithObjects:@";" , @"/" , @"?" , @":" ,
@@ -151,22 +152,19 @@ static NSString* urlencode(NSString *url) {
 	}
 }
 
--(NSDictionary*)parseFolderNode:(NSDictionary*)node {
+-(Folder*)parseFolderNode:(NSDictionary*)node {
 	NSArray *itemNode = [[[node objectForKey:@"nodeChildArray"] objectAtIndex:0] objectForKey:@"nodeChildArray"];
 	NSString* name = [[itemNode objectAtIndex:0] objectForKey:@"nodeContent"];
 	NSString* href = [[[[itemNode objectAtIndex:0] objectForKey:@"nodeAttributeArray"] objectAtIndex:1] objectForKey:@"nodeContent"];
-	NSString* unreadCount = @"0";
+	NSInteger unreadCount = 0;
 	if ([itemNode count] == 2) {
-		unreadCount = [[itemNode objectAtIndex:1] objectForKey:@"nodeContent"];
-		unreadCount = [unreadCount substringWithRange:NSMakeRange(1, [unreadCount length]-2)];
+		NSString* strUnreadCount = [[itemNode objectAtIndex:1] objectForKey:@"nodeContent"];
+		strUnreadCount = [strUnreadCount substringWithRange:NSMakeRange(1, [strUnreadCount length]-2)];
+		unreadCount = [strUnreadCount intValue];
 	}
-	NSDictionary *folder = [[NSDictionary alloc] initWithObjectsAndKeys:
-							name, @"name",
-							name, @"id",
-							href, @"url",
-							unreadCount, @"unreadCount",
-							nil
-							];
+	
+	Folder* folder = [[Folder alloc] initWithName:name URL:href UnreadCount:unreadCount]; 
+	
 	return folder;
 }
 
