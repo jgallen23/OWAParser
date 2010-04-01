@@ -85,14 +85,12 @@ static NSString* urlencode(NSString *url) {
 -(NSData*)getContentFromUrl:(NSString*)aUrl PostData:(NSDictionary*)postData {
 	NSString *builtUrl = [NSString stringWithFormat:@"%@%@", [self getBaseUrlWithoutAuth], aUrl];
 	
-	NSLog(@"%@", builtUrl);
 	/* Make a new header from the cookies */
 	NSMutableDictionary* headers = [NSMutableDictionary dictionaryWithDictionary:[NSHTTPCookie requestHeaderFieldsWithCookies:cookies]];
 	
 	NSMutableURLRequest * theRequest=(NSMutableURLRequest*)[NSMutableURLRequest requestWithURL:[NSURL URLWithString:builtUrl] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:60.0];
 	
 	if (postData != nil) {
-		NSLog(@"%@", postData);
 		[theRequest setHTTPMethod:@"POST"];
 		NSString* myRequestString = [postData urlEncodedString];
 		
@@ -104,14 +102,25 @@ static NSString* urlencode(NSString *url) {
 	}
 	[theRequest setAllHTTPHeaderFields:headers];
 	
-	NSLog(@"%@", headers);
 	
 	NSHTTPURLResponse *response = nil;
 	NSError* error = nil;
 	NSData *data = [NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:&error];
-	NSString *html = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
-	NSLog(@"%@", html);
+    if (debug) {
+        NSString *html = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+        [self logObject:html];
+    }
 	return data;
+}
+
+-(void)setDebug {
+    debug = YES;
+}
+
+-(void)logObject:(id)obj {
+    if (debug) {
+        NSLog(@"%@", obj);
+    }
 }
 
 -(NSData*)getContentFromUrl:(NSString*)aUrl {
@@ -120,8 +129,6 @@ static NSString* urlencode(NSString *url) {
 
 -(NSArray*)performXPathQuery:(NSString*)query onUrl:(NSString*)aUrl {
 	NSData *responseData = [self getContentFromUrl:aUrl];
-	//NSLog(@"%@", aUrl);
-	//NSLog(@"%@", [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding]);
 	NSArray *newItemsNodes = PerformHTMLXPathQuery(responseData, query);
 	
 	return newItemsNodes;

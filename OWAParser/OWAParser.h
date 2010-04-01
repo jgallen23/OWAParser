@@ -16,6 +16,7 @@
 	NSString* baseUrl;
 	NSMutableArray* folders;
 	NSArray* cookies;
+    BOOL debug;
 }
 
 @property (nonatomic, copy) NSString *username;
