@@ -44,6 +44,11 @@ static NSString* urlencode(NSString *url) {
 
 @implementation OWAParser
 
+@synthesize username;
+@synthesize password;
+@synthesize baseUrl;
+@synthesize folders;
+
 -(id)init {
 	if (self=[super init]) {
 	}
@@ -51,23 +56,26 @@ static NSString* urlencode(NSString *url) {
 	return self;
 }
 
--(id)initWithURL:(NSString*)aUrl login:(NSString*)aLogin password:(NSString*)aPassword {
+-(NSString*)getCorrectBaseUrl:(NSString*)url {
+	if (![url hasPrefix:@"http"])
+		url = [NSString stringWithFormat:@"http://%@", url];
+	if (![url hasSuffix:@"/"])
+		url = [url stringByAppendingString:@"/"];
+	return url;
+}
+
+-(id)initWithURL:(NSString*)aUrl username:(NSString*)aLogin password:(NSString*)aPassword {
 	if (self=[super init]) {
-		if (![aUrl hasPrefix:@"http"])
-			baseUrl = [NSString stringWithFormat:@"http://%@", aUrl];
-		else
-			baseUrl = aUrl;
-		login = aLogin;
-		password = aPassword;
+		self.baseUrl = [self getCorrectBaseUrl:aUrl];
+		self.username = aLogin;
+		self.password = aPassword;
 	}
 	return self;
 }
 
-
-
 -(NSString*)getBaseUrl {
 	NSArray *urlComp = [baseUrl componentsSeparatedByString:@"://"];
-	return [NSString stringWithFormat:@"%@://%@:%@@%@", [urlComp objectAtIndex:0], login, password, [urlComp objectAtIndex:1]];
+	return [NSString stringWithFormat:@"%@://%@:%@@%@", [urlComp objectAtIndex:0], username, password, [urlComp objectAtIndex:1]];
 }
 
 -(NSString*)getBaseUrlWithoutAuth {
@@ -77,18 +85,16 @@ static NSString* urlencode(NSString *url) {
 -(NSData*)getContentFromUrl:(NSString*)aUrl PostData:(NSDictionary*)postData {
 	NSString *builtUrl = [NSString stringWithFormat:@"%@%@", [self getBaseUrlWithoutAuth], aUrl];
 	
-	/* getting the stored cookies */
-	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
+	NSLog(@"%@", builtUrl);
 	/* Make a new header from the cookies */
 	NSMutableDictionary* headers = [NSMutableDictionary dictionaryWithDictionary:[NSHTTPCookie requestHeaderFieldsWithCookies:cookies]];
 	
 	NSMutableURLRequest * theRequest=(NSMutableURLRequest*)[NSMutableURLRequest requestWithURL:[NSURL URLWithString:builtUrl] cachePolicy:NSURLRequestUseProtocolCachePolicy timeoutInterval:60.0];
 	
 	if (postData != nil) {
+		NSLog(@"%@", postData);
 		[theRequest setHTTPMethod:@"POST"];
 		NSString* myRequestString = [postData urlEncodedString];
-		//myRequestString = urlencode(myRequestString);
 		
 		[headers setObject:@"application/x-www-form-urlencoded" forKey:@"Content-Type"];
 		[headers setObject:[NSString stringWithFormat:@"%d",[myRequestString length]] forKey:@"Content-Length"];
@@ -98,9 +104,13 @@ static NSString* urlencode(NSString *url) {
 	}
 	[theRequest setAllHTTPHeaderFields:headers];
 	
+	NSLog(@"%@", headers);
+	
 	NSHTTPURLResponse *response = nil;
 	NSError* error = nil;
 	NSData *data = [NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:&error];
+	NSString *html = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
+	NSLog(@"%@", html);
 	return data;
 }
 
@@ -128,27 +138,26 @@ static NSString* urlencode(NSString *url) {
 	[NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:nil];
 	
 	/* Get an array with all the cookies */
-	NSArray* allCookies = [NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
+	cookies = [[NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]] retain];
 	/* Add the array of cookies in the shared cookie storage instance */
 	[[NSHTTPCookieStorage sharedHTTPCookieStorage]
-	 setCookies:allCookies
+	 setCookies:cookies
 	 forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]
 	 mainDocumentURL:nil];
 
 	
 	@try {
 		NSData *data = [self getContentFromUrl:@""];
-		NSString *html = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+		NSString *html = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
 		if ([html isEqualToString:@""] || [html rangeOfString:@"You are not authorized to view this page"].location != NSNotFound) {
 			return NO;
 		} else {
 			return YES;
 		}
-		return NO;
 	}
 	@catch (NSException * e) {
-		return NO;
 	}
+	return NO;
 }
 
 -(Folder*)parseFolderNode:(NSDictionary*)node {
@@ -162,7 +171,7 @@ static NSString* urlencode(NSString *url) {
 		unreadCount = [strUnreadCount intValue];
 	}
 	
-	Folder* folder = [[Folder alloc] initWithName:name URL:href UnreadCount:unreadCount]; 
+	Folder* folder = [[[Folder alloc] initWithName:name URL:href UnreadCount:unreadCount] autorelease]; 
 	
 	return folder;
 }
@@ -279,7 +288,7 @@ static NSString* urlencode(NSString *url) {
 	
 	NSArray *toNodes = PerformHTMLXPathQuery(responseData, @"//*[@id='divTo']/span");
 	
-	NSMutableArray *to = [[NSMutableArray alloc] initWithCapacity:[toNodes count]];
+	NSMutableArray *to = [[[NSMutableArray alloc] initWithCapacity:[toNodes count]] autorelease];
 	
 	for (NSDictionary *toDict in toNodes) {
 		NSString* toName = nil;
@@ -294,19 +303,17 @@ static NSString* urlencode(NSString *url) {
 	
 	NSString *body = PerformHTMLXPathQueryAndReturnXml(responseData, @"//tr[2]/td/table[@class='w100']/tr[3]/td[@class='bdy']/div[@class='bdy']/div");
 	
-	Message* msg = [[Message alloc] initWithSubject:subject
+	Message* msg = [[[Message alloc] initWithSubject:subject
 											   From:from
 											 SentOn:sent
 											   Body:body
 											 SentTo:to
-										  MessageId:messageId];
+										  MessageId:messageId] autorelease];
 
 	return msg;
 }
 
 -(void)markMessageUnread:(NSString*)messageId {
-	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
 	NSString* canary = @"";
 	for (NSHTTPCookie* cookie in cookies) {
 		if ([cookie.name isEqualToString:@"UserContext"]) {
@@ -314,7 +321,7 @@ static NSString* urlencode(NSString *url) {
 			break;
 		}
 	}
-	NSDictionary *data = [[NSDictionary alloc] initWithObjectsAndKeys:
+	NSDictionary *data = [[[NSDictionary alloc] initWithObjectsAndKeys:
 						  //[[self class] urlencode:messageId], @"chkmsg",
 						  messageId, @"chkmsg",
 						  @"", @"hidactbrfld",
@@ -324,13 +331,11 @@ static NSString* urlencode(NSString *url) {
 						  @"MessageView", @"hidpid",
 						  @"", @"hidpnst",
 						  @"", @"hidso",
-						  nil];
+						  nil] autorelease];
 	[self getContentFromUrl:[[self getFolderById:@"Inbox"] url] PostData:data];
 }
 
 -(void)markMessageRead:(NSString*)messageId {
-	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
 	NSString* canary = @"";
 	for (NSHTTPCookie* cookie in cookies) {
 		if ([cookie.name isEqualToString:@"UserContext"]) {
@@ -338,7 +343,7 @@ static NSString* urlencode(NSString *url) {
 			break;
 		}
 	}
-	NSDictionary *data = [[NSDictionary alloc] initWithObjectsAndKeys:
+	NSDictionary *data = [[[NSDictionary alloc] initWithObjectsAndKeys:
 						  messageId, @"chkmsg",
 						  @"", @"hidactbrfld",
 						  @"", @"hidcid",
@@ -347,13 +352,11 @@ static NSString* urlencode(NSString *url) {
 						  @"MessageView", @"hidpid",
 						  @"", @"hidpnst",
 						  @"", @"hidso",
-						  nil];
+						  nil] autorelease];
 	[self getContentFromUrl:[[self getFolderById:@"Inbox"] url] PostData:data];
 }
 
 -(void)deleteMessage:(NSString*)messageId {
-	NSArray* cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage]
-						cookiesForURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]];
 	NSString* canary = @"";
 	for (NSHTTPCookie* cookie in cookies) {
 		if ([cookie.name isEqualToString:@"UserContext"]) {
@@ -361,7 +364,7 @@ static NSString* urlencode(NSString *url) {
 			break;
 		}
 	}
-	NSDictionary *data = [[NSDictionary alloc] initWithObjectsAndKeys:
+	NSDictionary *data = [[[NSDictionary alloc] initWithObjectsAndKeys:
 						  messageId, @"chkmsg",
 						  @"", @"hidactbrfld",
 						  @"", @"hidcid",
@@ -370,8 +373,9 @@ static NSString* urlencode(NSString *url) {
 						  @"MessageView", @"hidpid",
 						  @"", @"hidpnst",
 						  @"", @"hidso",
-						  nil];
-	[self getContentFromUrl:[[self getFolderById:@"Inbox"] url] PostData:data];
+						  nil] autorelease];
+	[self getContentFromUrl:@"?ae=Folder&t=IPF.Note&id=LgAAAADuXmIWgLhGTJrVVAih3RY%2bAQBIdpf9m55CSLeI2hw6Sj78AAAAJX1%2fAAAB&slUsng=0&pg=1" PostData:data];
+
 }
 
 +(NSString *) formattedDateRelativeToNow:(NSDate *)date
@@ -407,6 +411,19 @@ static NSString* urlencode(NSString *url) {
 	
 	return [dateFormatter stringFromDate:date];
 } 
+
+-(void)dealloc {
+	[username release];
+	username = nil;
+	[password release];
+	password = nil;
+	[baseUrl release];
+	baseUrl = nil;
+	[folders release];
+	folders = nil;
+
+	[super dealloc];
+}
 
 
 @end

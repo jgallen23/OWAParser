@@ -11,14 +11,19 @@
 #import "Message.h"
 
 @interface OWAParser : NSObject {
-	NSString* login;
+	NSString* username;
 	NSString* password;
 	NSString* baseUrl;
-	NSData* currentPageData;
 	NSMutableArray* folders;
+	NSArray* cookies;
 }
 
--(id)initWithURL:(NSString *)aUrl login:(NSString *)aLogin password:(NSString *)aPassword;
+@property (nonatomic, copy) NSString *username;
+@property (nonatomic, copy) NSString *password;
+@property (nonatomic, copy) NSString *baseUrl;
+@property (readonly, nonatomic, retain) NSMutableArray *folders;
+
+-(id)initWithURL:(NSString *)aUrl username:(NSString *)aLogin password:(NSString *)aPassword;
 -(BOOL)login;
 -(NSArray*)getFolders;
 -(int)getInboxUnreadCount;
