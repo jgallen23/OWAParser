@@ -24,7 +24,7 @@
 		self.from = aFrom;
 		self.sentOn = aSentOn;
 		self.messageId = aMessageId;
-		self.body = body;
+		self.body = aBody;
 		self.sentTo = aSentTo;
 		
 	}
