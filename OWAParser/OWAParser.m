@@ -143,22 +143,20 @@ static NSString* urlencode(NSString *url) {
 	NSHTTPURLResponse *response = nil;
 	
 	[NSURLConnection sendSynchronousRequest:theRequest returningResponse:&response error:nil];
-	
-	/* Get an array with all the cookies */
-	cookies = [[NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]] retain];
-	/* Add the array of cookies in the shared cookie storage instance */
-	[[NSHTTPCookieStorage sharedHTTPCookieStorage]
-	 setCookies:cookies
-	 forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]
-	 mainDocumentURL:nil];
-
-	
+		
 	@try {
 		NSData *data = [self getContentFromUrl:@""];
 		NSString *html = [[[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] autorelease];
 		if ([html isEqualToString:@""] || [html rangeOfString:@"You are not authorized to view this page"].location != NSNotFound) {
 			return NO;
-		} else {
+        } else if ([html rangeOfString:@"hidcanary"].location != NSNotFound) {
+            /* Get an array with all the cookies */
+            NSArray *cookies = [[NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]] retain];
+            /* Add the array of cookies in the shared cookie storage instance */
+            [[NSHTTPCookieStorage sharedHTTPCookieStorage]
+             setCookies:cookies
+             forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]
+             mainDocumentURL:nil];
 			return YES;
 		}
 	}

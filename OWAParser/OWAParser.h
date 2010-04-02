@@ -26,6 +26,7 @@
 
 -(id)initWithURL:(NSString *)aUrl username:(NSString *)aLogin password:(NSString *)aPassword;
 -(BOOL)login;
+-(void)setDebug;
 -(NSArray*)getFolders;
 -(int)getInboxUnreadCount;
 -(NSArray*)getMessagesFrom:(NSString *)folderId;
