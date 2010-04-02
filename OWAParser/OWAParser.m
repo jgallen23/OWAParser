@@ -74,12 +74,12 @@ static NSString* urlencode(NSString *url) {
 }
 
 -(NSString*)getBaseUrl {
-	NSArray *urlComp = [baseUrl componentsSeparatedByString:@"://"];
-	return [NSString stringWithFormat:@"%@://%@:%@@%@", [urlComp objectAtIndex:0], username, password, [urlComp objectAtIndex:1]];
+	NSArray *urlComp = [self.baseUrl componentsSeparatedByString:@"://"];
+	return [NSString stringWithFormat:@"%@://%@:%@@%@", [urlComp objectAtIndex:0], self.username, self.password, [urlComp objectAtIndex:1]];
 }
 
 -(NSString*)getBaseUrlWithoutAuth {
-	return baseUrl;
+	return self.baseUrl;
 }
 
 -(NSData*)getContentFromUrl:(NSString*)aUrl PostData:(NSDictionary*)postData {
@@ -182,7 +182,7 @@ static NSString* urlencode(NSString *url) {
 }
 
 -(NSArray*)getFolders {
-	if (!folders) {
+	if (!self.folders) {
 		NSString *xpathQueryString = @"//table[@class='wh100']/tr/td/table[@class='snt']/tr";
 		NSArray *nodes = [self performXPathQuery:xpathQueryString onUrl:@""];
 		folders = [[[NSMutableArray alloc] initWithCapacity:[nodes count]] retain];
@@ -191,14 +191,14 @@ static NSString* urlencode(NSString *url) {
 		}
 	}
 	
-	return folders;
+	return self.folders;
 }
 
 -(Folder*)getFolderById:(NSString*)folderId {
-	if (!folders) {
+	if (!self.folders) {
 		[self getFolders];
 	}
-	for (Folder *folder in folders) {
+	for (Folder *folder in self.folders) {
 		if ([folder.name isEqualToString:folderId])
 			return folder;
 	}
