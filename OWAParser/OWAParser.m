@@ -151,7 +151,7 @@ static NSString* urlencode(NSString *url) {
 			return NO;
         } else if ([html rangeOfString:@"hidcanary"].location != NSNotFound) {
             /* Get an array with all the cookies */
-            NSArray *cookies = [[NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]] retain];
+            cookies = [[NSHTTPCookie cookiesWithResponseHeaderFields:[response allHeaderFields] forURL:[NSURL URLWithString:[self getBaseUrlWithoutAuth]]] retain];
             /* Add the array of cookies in the shared cookie storage instance */
             [[NSHTTPCookieStorage sharedHTTPCookieStorage]
              setCookies:cookies
@@ -185,7 +185,7 @@ static NSString* urlencode(NSString *url) {
 	if (!self.folders) {
 		NSString *xpathQueryString = @"//table[@class='wh100']/tr/td/table[@class='snt']/tr";
 		NSArray *nodes = [self performXPathQuery:xpathQueryString onUrl:@""];
-		folders = [[[NSMutableArray alloc] initWithCapacity:[nodes count]] retain];
+		self.folders = [[[NSMutableArray alloc] initWithCapacity:[nodes count]] retain];
 		for (int i = 0; i < [nodes count]; i++) {
 			[folders addObject:[self parseFolderNode:[nodes objectAtIndex:i]]];
 		}

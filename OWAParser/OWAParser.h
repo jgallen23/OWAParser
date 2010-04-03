@@ -22,7 +22,7 @@
 @property (nonatomic, copy) NSString *username;
 @property (nonatomic, copy) NSString *password;
 @property (nonatomic, copy) NSString *baseUrl;
-@property (readonly, nonatomic, retain) NSMutableArray *folders;
+@property (nonatomic, retain) NSMutableArray *folders;
 
 -(id)initWithURL:(NSString *)aUrl username:(NSString *)aLogin password:(NSString *)aPassword;
 -(BOOL)login;
